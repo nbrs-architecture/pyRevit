@@ -1,0 +1,26 @@
+<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="10,0,0,0">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="{Binding name}" FontWeight="Medium" />
+                <TextBlock Text="{Binding subtitle}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" >
+                <TextBlock Foreground="DarkGray" Margin="25,0,0,0" HorizontalAlignment="Right">
+                    <Run Text="{DynamicResource AuthorLabel}"/>
+                    <Run Text=": "/>
+                    <Run Text="{Binding author}"/>
+                </TextBlock>
+                <TextBlock Foreground="DarkGray" Margin="25,0,0,0" HorizontalAlignment="Right">
+                    <Run Text="{DynamicResource ExtensionLabel}"/>
+                    <Run Text=": "/>
+                    <Run Text="{Binding extension}"/>
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</ControlTemplate>

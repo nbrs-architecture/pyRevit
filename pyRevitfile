@@ -1,0 +1,57 @@
+[engines]
+
+[engines.IPY342]
+kernel = 'IronPython 3'
+version = 342
+runtime = true
+path = 'IPY342'
+assembly = 'pyRevitLoader.dll'
+compatproducts = []
+description = 'IronPython 3 Engine'
+
+[engines.DEFAULT]
+kernel = 'IronPython 2'
+version = 2712
+runtime = true
+path = 'IPY2712PR'
+assembly = 'pyRevitLoader.dll'
+description = 'Custom pyRevit IronPython 2 Engine'
+
+[engines.CPY3123]
+kernel = 'CPython'
+version = 3123
+runtime = false
+path = 'CPY3123'
+assembly = 'python312.dll'
+description = 'CPython Engine'
+
+[deployments]
+core = ['pyrevitlib', 'site-packages', 'pyRevitfile']
+corex = [
+    'extensions/pyRevitCore.extension',
+    'extensions/extensions.json',
+    'pyrevitlib',
+    'site-packages',
+    'pyRevitfile',
+]
+base = [
+    'extensions/pyRevitBundlesCreatorExtension.extension',
+    'extensions/pyRevitCore.extension',
+    'extensions/pyRevitTags.extension',
+    'extensions/pyRevitTools.extension',
+    'extensions/extensions.json',
+    'pyrevitlib',
+    'site-packages',
+    'pyRevitfile',
+]
+basepublic = [
+    'extensions/pyRevitCore.extension',
+    'extensions/pyRevitTags.extension',
+    'extensions/pyRevitTools.extension',
+    'extensions/pyRevitTutor.extension',
+    'extensions/extensions.json',
+    'pyrevitlib',
+    'site-packages',
+    'pyRevitfile',
+]
+basex = ['extensions', 'pyrevitlib', 'site-packages', 'pyRevitfile']

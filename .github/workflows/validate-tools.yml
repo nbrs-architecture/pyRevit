@@ -1,0 +1,43 @@
+name: Validate pyRevitTools
+
+on:
+  pull_request:
+    paths:
+      - "extensions/pyRevitTools.extension/**"
+  push:
+    branches: [master]
+    paths:
+      - "extensions/pyRevitTools.extension/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check extension structure
+        run: |
+          test -f extensions/pyRevitTools.extension/extension.json
+          test -d extensions/pyRevitTools.extension/pyRevit.tab
+
+      - name: Validate JSON files
+        run: |
+          python3 - <<'PY'
+          import json, glob, sys
+          bad = []
+          for f in glob.glob("extensions/pyRevitTools.extension/**/*.json", recursive=True):
+              try:
+                  json.load(open(f, encoding="utf-8"))
+              except Exception as e:
+                  bad.append((f, str(e)))
+          if bad:
+              for f, e in bad:
+                  print("INVALID JSON:", f, "->", e)
+              sys.exit(1)
+          print("All JSON files OK")
+          PY
+
+      - name: Syntax-check Python scripts (report only)
+        run: |
+          python3 -m compileall -q extensions/pyRevitTools.extension || true

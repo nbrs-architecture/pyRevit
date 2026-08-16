@@ -1,0 +1,51 @@
+name: Sync core from upstream
+
+on:
+  schedule:
+    - cron: "0 9 * * MON"   # every Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream master
+        run: |
+          git remote add upstream https://github.com/pyrevitlabs/pyRevit.git 2>/dev/null || true
+          git fetch upstream master --quiet
+
+      - name: Overlay core paths from upstream
+        run: |
+          # Core (synced) paths only.
+          # extensions/pyRevitTools.extension is deliberately NOT touched.
+          git checkout upstream/master -- \
+            pyrevitlib \
+            site-packages \
+            extensions/pyRevitCore.extension \
+            extensions/extensions.json \
+            pyRevitfile \
+            .pyrevitargs
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: upstream-sync
+          base: master
+          commit-message: "chore: sync pyRevit core from upstream/master"
+          title: "Core sync from upstream/master"
+          body: |
+            Automated core-only sync from [pyrevitlabs/pyRevit](https://github.com/pyrevitlabs/pyRevit) `master`.
+
+            **Synced:** `pyrevitlib`, `site-packages`, `extensions/pyRevitCore.extension`, `extensions/extensions.json`, `pyRevitfile`, `.pyrevitargs`.
+
+            **Never touched:** `extensions/pyRevitTools.extension/` (team-owned).
+          delete-branch: true
