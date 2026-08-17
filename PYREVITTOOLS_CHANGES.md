@@ -14,7 +14,7 @@ if an upstream core sync ever overlaps with our files.
 
 | Date | Tool path | Change | Reason |
 |------|----------|--------|--------|
-| 2026-08-17 | `extensions/pyRevitTools.extension/pyRevit.tab/Drawing Set.panel/Print Sheets.pushbutton` | Renamed bundle folder to `.Print Sheets.pushbutton` (dot-prefix) so pyRevit's parser skips it — button hidden from the Drawing Set panel, all assets preserved | Tool not needed on this deployment; re-enable by renaming back |
+| 2026-08-17 | `extensions/pyRevitTools.extension/pyRevit.tab/Drawing Set.panel/Print Sheets.pushbutton` | Renamed bundle folder to `.Print Sheets.disabled` (non-component postfix + dot-prefix) so both the Python parser and the new C# loader skip it — button hidden from the Drawing Set panel, all assets preserved | Tool not needed on this deployment; re-enable by renaming back |
 
 ## Removed Tools
 
