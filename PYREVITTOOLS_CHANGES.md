@@ -14,7 +14,7 @@ if an upstream core sync ever overlaps with our files.
 
 | Date | Tool path | Change | Reason |
 |------|----------|--------|--------|
-| _None yet_ | | | |
+| 2026-08-17 | `extensions/pyRevitTools.extension/pyRevit.tab/Drawing Set.panel/Print Sheets.pushbutton` | Renamed bundle folder to `.Print Sheets.pushbutton` (dot-prefix) so pyRevit's parser skips it — button hidden from the Drawing Set panel, all assets preserved | Tool not needed on this deployment; re-enable by renaming back |
 
 ## Removed Tools
 
