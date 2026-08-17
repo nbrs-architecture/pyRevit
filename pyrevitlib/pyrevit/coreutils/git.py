@@ -7,7 +7,7 @@ Documentation:
 import os.path as op
 from collections import OrderedDict
 
-from pyrevit import HOST_APP, PyRevitException
+from pyrevit import HOST_APP, PyRevitException, HOME_DIR
 from pyrevit.compat import safe_strtype, IRONPY
 from pyrevit import framework
 from pyrevit.framework import clr
@@ -30,6 +30,26 @@ try:
         clr.AddReference(LIBGIT_DLL)
 
     import LibGit2Sharp as libgit  # pylint: disable=import-error
+
+    # ------------------------------------------------------------------
+    # NBRS: read git config from THIS clone's folder instead of each
+    # user's ~/.gitconfig. Needed because the clone is admin-owned,
+    # which git otherwise rejects as "dubious ownership".
+    # ------------------------------------------------------------------
+    GIT_CONFIG_FILE = op.join(HOME_DIR, 'gitconfig')
+    if not op.exists(GIT_CONFIG_FILE):
+        try:
+            # git wants forward slashes in safe.directory
+            safe_dir = op.normpath(HOME_DIR).replace('\\', '/')
+            with open(GIT_CONFIG_FILE, 'w') as cfg_file:
+                cfg_file.write('[safe]\n\tdirectory = %s\n' % safe_dir)
+        except IOError:
+            mlogger.debug('Clone folder is read-only; gitconfig already seeded.')
+
+    libgit.GlobalSettings.SetConfigSearchPaths(
+        libgit.ConfigurationLevel.Global,
+        GIT_CONFIG_FILE
+    )
 
 except Exception as load_err:
     mlogger.error(
