@@ -2,19 +2,24 @@ name: Sync core from upstream
 
 on:
   schedule:
-    - cron: "0 9 * * MON"   # every Monday 09:00 UTC
+    - cron: "0 9 1 1,4,7,10 *"   # quarterly check: 09:00 UTC on the 1st of Jan/Apr/Jul/Oct
   workflow_dispatch:
+    inputs:
+      push:
+        description: "Push core sync to master (authorized actors only; see SYNC_ALLOWED_ACTORS)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
-  pull-requests: write
+  issues: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -35,17 +40,80 @@ jobs:
             pyRevitfile \
             .pyrevitargs
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only actors listed in the SYNC_ALLOWED_ACTORS repo variable (JSON array)
+      # may push the sync to master; everyone else with write can still trigger
+      # check-and-notify runs.
+      - name: Commit and push core sync
+        if: steps.changes.outputs.changed == 'true' && github.event.inputs.push == 'true' && contains(fromJson(vars.SYNC_ALLOWED_ACTORS || '[]'), github.actor)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "chore: sync pyRevit core from upstream/master"
+          git push origin master
+
+      - name: Reject unauthorized push
+        if: steps.changes.outputs.changed == 'true' && github.event.inputs.push == 'true' && !contains(fromJson(vars.SYNC_ALLOWED_ACTORS || '[]'), github.actor)
+        run: |
+          echo "::error::${{ github.actor }} is not authorized to push the core sync. Add them to the SYNC_ALLOWED_ACTORS repo variable (JSON array)."
+          exit 1
+
+      - name: Notify pending upstream changes
+        if: steps.changes.outputs.changed == 'true' && github.event.inputs.push != 'true'
+        uses: actions/github-script@v7
         with:
-          branch: upstream-sync
-          base: master
-          commit-message: "chore: sync pyRevit core from upstream/master"
-          title: "Core sync from upstream/master"
-          body: |
-            Automated core-only sync from [pyrevitlabs/pyRevit](https://github.com/pyrevitlabs/pyRevit) `master`.
+          script: |
+            const title = 'Upstream pyRevit core changes pending';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            const existing = issues.find(i => i.title === title);
+            const body = 'pyrevitlabs/pyRevit `master` has core changes not yet synced. ' +
+              'Run the **Sync core from upstream** workflow with **push** enabled to sync. ' +
+              'It never touches `extensions/pyRevitTools.extension/`.';
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
 
-            **Synced:** `pyrevitlib`, `site-packages`, `extensions/pyRevitCore.extension`, `extensions/extensions.json`, `pyRevitfile`, `.pyrevitargs`.
-
-            **Never touched:** `extensions/pyRevitTools.extension/` (team-owned).
-          delete-branch: true
+      - name: Close pending issue when up to date
+        if: steps.changes.outputs.changed == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Upstream pyRevit core changes pending';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: 'closed'
+              });
+            }

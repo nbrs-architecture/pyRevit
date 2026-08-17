@@ -29,6 +29,10 @@ pyrevit clones update OrgClone --skip-bin
 
 ## Syncing with upstream
 
-The `Sync core from upstream` workflow runs weekly (and can be run manually from
-the Actions tab). It opens a pull request with core-only updates. Review and
-merge it — it never touches `extensions/pyRevitTools.extension/`.
+The `Sync core from upstream` workflow runs a quarterly check (and can be run
+manually from the Actions tab). A scheduled check only opens an issue when
+upstream has new core changes — it never auto-pushes. To actually sync, run the
+workflow manually with **push** enabled to commit and push core changes directly
+to `master`. Pushing requires your GitHub user to be listed in the
+`SYNC_ALLOWED_ACTORS` repo variable (a JSON array, e.g. `["user1","user2"]`).
+It never touches `extensions/pyRevitTools.extension/`.
