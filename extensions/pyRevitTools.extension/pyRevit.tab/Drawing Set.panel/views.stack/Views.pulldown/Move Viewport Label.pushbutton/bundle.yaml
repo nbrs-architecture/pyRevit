@@ -1,33 +1,9 @@
 title:
   en_us: |-
     Move Viewport Label
-  ko: 뷰포트 레이블 이동
-  fr_fr: |-
-    Déplacer le Titre de la Fenêtre
-  ru: |-
-    Переместить метку окна
-  chinese_s: 移动视口标签
-  es_es: |-
-    Move Viewport Label
-  de_de: |-
-    Verschieben des Fenstertitels
-  pt_br: |-
-    Mover Título da Viewport
 tooltip:
   en_us: |-
     Move Viewport Label
-  ko: 뷰포트 레이블을 이동합니다.
-  fr_fr: |-
-    Déplacer le Titre de la Fenêtre
-  ru: |-
-    Переместить метку окна
-  chinese_s: "移动视口标签\nhttps://discourse.pyrevitlabs.io/t/i-developed-a-tool-need-help-to-get-it-into-the-new-release-of-pyrevit/7639/3"
-  es_es: |-
-    Move Viewport Label
-  de_de: |-
-    Verschieben des Fenstertitels
-  pt_br: |-
-    Mover título da viewport
 authors:
   - Tim Hevel
   - Jean-Marc Couffin (C# to python and refactor)

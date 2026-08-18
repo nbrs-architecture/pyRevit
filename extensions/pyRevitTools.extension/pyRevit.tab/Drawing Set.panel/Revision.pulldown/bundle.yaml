@@ -1,12 +1,5 @@
 title:
   en_us: Revision
-  ko: 수정 사항
-  fr_fr: Révision
-  ru: Изменения
-  chinese_s: 修订
-  es_es: Revisión
-  de_de: Änderungen
-  pt_br: Revisão
 layout:
   - Create Revised Sheet Set
   - Copy Revisions to Open Documents
