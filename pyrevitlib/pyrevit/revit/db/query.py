@@ -2216,19 +2216,24 @@ def get_sheet_tblocks(src_sheet):
     """
     Retrieves all title block elements from a given Revit sheet.
 
+    Uses a single global collector filtered by ``OwnerViewId`` instead of a
+    view-scoped collector, so Revit is not forced to regenerate the sheet on
+    each query (title blocks placed on a sheet are owned by that sheet).
+
     Args:
         src_sheet (DB.ViewSheet): The source Revit sheet from which to collect title blocks.
 
     Returns:
         list: A list of title block elements present on the specified sheet.
     """
+    doc = src_sheet.Document
     sheet_tblocks = (
-        DB.FilteredElementCollector(src_sheet.Document, src_sheet.Id)
+        DB.FilteredElementCollector(doc)
         .OfCategory(DB.BuiltInCategory.OST_TitleBlocks)
         .WhereElementIsNotElementType()
         .ToElements()
     )
-    return list(sheet_tblocks)
+    return [x for x in sheet_tblocks if x.OwnerViewId == src_sheet.Id]
 
 
 def get_sheet_sets(doc=None):
