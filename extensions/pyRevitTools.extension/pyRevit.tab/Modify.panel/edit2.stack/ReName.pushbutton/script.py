@@ -9,6 +9,7 @@ All UI is built from pyRevit forms (no third-party windows).
 #pylint: disable=import-error,invalid-name,broad-except
 from pyrevit import revit, DB
 from pyrevit import forms
+from pyrevit.compat import get_elementid_value_func
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +84,7 @@ def _apply_renames(doc, rename_pairs):
     conflicts = []
     failed = []
     seen_names = {}
+    get_elementid_value = get_elementid_value_func()
 
     with revit.Transaction('ReName', doc=doc):
         for element, new_name in rename_pairs:
@@ -90,10 +92,10 @@ def _apply_renames(doc, rename_pairs):
             new_key = new_name.lower()
             # avoid name collisions within the same batch
             if (new_key in seen_names
-                    and seen_names[new_key] != element.Id.IntegerValue):
+                    and seen_names[new_key] != get_elementid_value(element.Id)):
                 conflicts.append((element, old_name, new_name))
                 continue
-            seen_names[new_key] = element.Id.IntegerValue
+            seen_names[new_key] = get_elementid_value(element.Id)
             try:
                 _set_name(element, new_name)
                 renamed.append((element, old_name, new_name))
