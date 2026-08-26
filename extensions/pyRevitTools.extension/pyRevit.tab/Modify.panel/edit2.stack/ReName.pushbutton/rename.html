@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<style>
+  .list { position: absolute; top: 10px; left: 10px; bottom: 10px; right: 280px;
+          display: flex; flex-direction: column; }
+  .controls { position: absolute; top: 10px; right: 10px; bottom: 10px; width: 260px; }
+  .grid-hdr { display: flex; border: 1px solid #ccc; border-bottom: none;
+              background: #f0f1f2; user-select: none; font-size: 12px;
+              font-weight: bold; color: #555; }
+  .grid-hdr .col { padding: 4px 6px; white-space: nowrap; overflow: hidden;
+                   text-overflow: ellipsis; cursor: pointer; }
+  .grid-hdr .col-cat { flex: 0 0 150px; border-right: 1px solid #ddd; }
+  .grid-hdr .col-fam { flex: 1; }
+  .grid-hdr .arrow { font-size: 10px; color: #888; }
+  .filter-btn { margin-left: 6px; cursor: pointer; border: 1px solid #aaa;
+                background: #fff; border-radius: 3px; font-size: 10px;
+                padding: 0 4px; vertical-align: middle; }
+  #items { flex: 1; border: 1px solid #ccc; overflow: auto; }
+  .row { display: flex; white-space: nowrap; font-size: 13px;
+         border-bottom: 1px solid #eee; }
+  .row:hover { background: #f5f6f7; }
+  .row .col { padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; }
+  .row .col-cat { flex: 0 0 150px; color: #888; border-right: 1px solid #eee; }
+  .row .col-fam { flex: 1; }
+  .pane.list.nocats .col-cat { display: none; }
+  .pane.list.nocats .col-fam { flex: 1; }
+  .count { margin-top: 4px; font-size: 12px; color: #555; }
+  .chg { background: #d6f5d6; border-radius: 2px; }
+  .filter-pop { position: absolute; z-index: 100; background: #fff;
+                border: 1px solid #aaa; box-shadow: 2px 2px 6px rgba(0,0,0,.3);
+                max-height: 260px; overflow: auto; padding: 6px; display: none;
+                font-size: 12px; min-width: 160px; }
+  .filter-pop label { display: block; white-space: nowrap; padding: 2px 4px; }
+  .filter-pop label:hover { background: #f0f1f2; }
+  input[type=text] { margin: 4px 0 12px 0; }
+  .exact { display: block; font-size: 12px; color: #555; margin: 4px 0 8px 0; }
+</style>
+</head>
+<body>
+<div class="hdr" id="hdr"></div>
+<div class="wrap">
+  <div class="pane list">
+    <div class="grid-hdr">
+      <div class="col col-cat" id="cat-col-hdr" onclick="sortBy('cat')">
+        Categories <span class="arrow" id="cat-arrow"></span>
+        <button type="button" class="filter-btn" id="cat-filter-btn"
+                title="Filter categories" onclick="toggleFilter(event)">&#9662;</button>
+      </div>
+      <div class="col col-fam" id="fam-col-hdr" onclick="sortBy('name')">
+        <span id="fam-col-label">Family Type</span> <span class="arrow" id="name-arrow"></span>
+      </div>
+    </div>
+    <div id="items"></div>
+    <div class="count" id="count"></div>
+  </div>
+  <div class="pane controls">
+    <div class="lbl">FIND</div>
+    <input type="text" id="find" placeholder="text to find">
+    <label class="exact"><input type="checkbox" id="exact"> Match Exact</label>
+    <div class="lbl">REPLACE</div>
+    <input type="text" id="replace" placeholder="replacement text">
+  </div>
+</div>
+<div id="filter-pop" class="filter-pop"></div>
+<div class="btns">
+  <button type="button" class="ghost" onclick="pyrevit.cancel()">Close</button>
+  <button type="button" class="primary" onclick="submit()">Rename</button>
+</div>
+
+<script>
+  // items come from Python: [{id, name, category?}, ...]
+  var items = pyrevit.data.items || [];
+  var names = {};      // id -> current name (find/replace target)
+  var oldNames = {};   // id -> original name
+  var cats = {};       // id -> category name (left column, not searched)
+  var renamedIds = {}; // id -> true once renamed in this session
+  for (var i = 0; i < items.length; i++) {
+    names[items[i].id] = items[i].name;
+    oldNames[items[i].id] = items[i].name;
+    cats[items[i].id] = items[i].category || '';
+  }
+  document.getElementById('hdr').textContent = pyrevit.data.category || 'ReName';
+
+  // unique categories (sorted)
+  var allCats = [];
+  (function () {
+    var seen = {};
+    for (var i = 0; i < items.length; i++) {
+      var c = cats[items[i].id];
+      if (c && !seen[c]) { seen[c] = true; allCats.push(c); }
+    }
+    allCats.sort();
+  })();
+  var hasCats = allCats.length > 0;
+
+  var selCats = null;   // null = Select All (all categories)
+  var sortCol = 'name'; // 'cat' | 'name'
+  var sortDir = 1;      // 1 = asc, -1 = desc
+
+  // non-family targets have no categories: drop the column and filter button
+  if (!hasCats) {
+    var listPane = document.querySelector('.pane.list');
+    if (listPane) { listPane.className = 'pane list nocats'; }
+    document.getElementById('cat-filter-btn').style.display = 'none';
+    document.getElementById('fam-col-label').textContent = 'Name';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  function diffSpan(a, b) {
+    if (a === b) { return null; }
+    var n = Math.min(a.length, b.length);
+    var i = 0;
+    while (i < n && a[i] === b[i]) { i++; }
+    var j = 0;
+    while (j < (a.length - i) && j < (b.length - i) &&
+           a[a.length - 1 - j] === b[b.length - 1 - j]) { j++; }
+    return [i, b.length - j];
+  }
+  function isExact() {
+    return document.getElementById('exact').checked;
+  }
+
+  function catFilteredSorted() {
+    var list = items.slice();
+    if (selCats !== null) {
+      list = list.filter(function (it) { return selCats.indexOf(cats[it.id]) >= 0; });
+    }
+    list.sort(function (a, b) {
+      var va = sortCol === 'cat' ? (cats[a.id] || '') : (names[a.id] || '');
+      var vb = sortCol === 'cat' ? (cats[b.id] || '') : (names[b.id] || '');
+      va = va.toLowerCase(); vb = vb.toLowerCase();
+      if (va < vb) { return -sortDir; }
+      if (va > vb) { return sortDir; }
+      var ta = sortCol === 'cat' ? (names[a.id] || '') : (cats[a.id] || '');
+      var tb = sortCol === 'cat' ? (names[b.id] || '') : (cats[b.id] || '');
+      ta = ta.toLowerCase(); tb = tb.toLowerCase();
+      if (ta < tb) { return -sortDir; }
+      if (ta > tb) { return sortDir; }
+      return 0;
+    });
+    return list;
+  }
+
+  function rowHtml(id) {
+    return '<div class="row" data-id="' + id + '" title="' + escHtml(names[id]) + '">' +
+           '<div class="col col-cat">' + (cats[id] ? escHtml(cats[id]) : '') + '</div>' +
+           '<div class="col col-fam">' + escHtml(names[id]) + '</div></div>';
+  }
+
+  function render() {
+    var list = catFilteredSorted();
+    var html = '';
+    for (var i = 0; i < list.length; i++) { html += rowHtml(list[i].id); }
+    document.getElementById('items').innerHTML = html;
+    filterFind();
+    updateArrows();
+    updateFilterLabel();
+  }
+
+  function setCountText() {
+    var rows = document.getElementById('items').getElementsByClassName('row');
+    var shown = 0;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].style.display !== 'none') { shown++; }
+    }
+    var nRenamed = 0;
+    for (var id in renamedIds) {
+      if (renamedIds.hasOwnProperty(id)) { nRenamed++; }
+    }
+    var text = shown + ' shown';
+    if (nRenamed > 0) { text += '  |  ' + nRenamed + ' renamed'; }
+    document.getElementById('count').textContent = text;
+  }
+
+  function filterFind() {
+    var exact = isExact();
+    var q = document.getElementById('find').value;
+    if (!exact) { q = q.toLowerCase(); }
+    var rows = document.getElementById('items').getElementsByClassName('row');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].getAttribute('data-id');
+      var name = names[id] || '';
+      var hay = exact ? name : name.toLowerCase();
+      var show = (q === '') || (hay.indexOf(q) >= 0);
+      rows[i].style.display = show ? '' : 'none';
+      if (show) {
+        var disp = escHtml(name);
+        if (q !== '') {
+          var idx = hay.indexOf(q);
+          disp = escHtml(name.substring(0, idx)) +
+                 '<mark>' + escHtml(name.substring(idx, idx + q.length)) + '</mark>' +
+                 escHtml(name.substring(idx + q.length));
+        }
+        rows[i].getElementsByClassName('col-fam')[0].innerHTML = disp;
+      }
+    }
+    setCountText();
+  }
+
+  function sortBy(col) {
+    if (sortCol === col) { sortDir = -sortDir; }
+    else { sortCol = col; sortDir = 1; }
+    render();
+  }
+  function updateArrows() {
+    document.getElementById('cat-arrow').textContent =
+      sortCol === 'cat' ? (sortDir === 1 ? '\u25B2' : '\u25BC') : '';
+    document.getElementById('name-arrow').textContent =
+      sortCol === 'name' ? (sortDir === 1 ? '\u25B2' : '\u25BC') : '';
+  }
+
+  function updateFilterLabel() {
+    var btn = document.getElementById('cat-filter-btn');
+    if (selCats === null) {
+      btn.textContent = '\u25BE';
+      btn.title = 'Filter categories (Select All)';
+    } else {
+      btn.textContent = '\u25BE ' + selCats.length;
+      btn.title = 'Filter categories (' + selCats.length + ' of ' + allCats.length + ')';
+    }
+  }
+
+  function buildFilterPop() {
+    var pop = document.getElementById('filter-pop');
+    var html = '<label><input type="checkbox" id="fa-all" onchange="applyFilter(event)"' +
+               (selCats === null ? ' checked' : '') + '> Select All</label>' +
+               '<div style="border-top:1px solid #ddd; margin:4px 0;"></div>';
+    for (var i = 0; i < allCats.length; i++) {
+      var c = allCats[i];
+      var checked = (selCats === null) || (selCats.indexOf(c) >= 0);
+      html += '<label><input type="checkbox" class="fa-cat" value="' +
+              escHtml(c) + '" onchange="applyFilter(event)"' + (checked ? ' checked' : '') +
+              '> ' + escHtml(c) + '</label>';
+    }
+    pop.innerHTML = html;
+  }
+
+  function applyFilter(ev) {
+    var t = ev ? ev.target : null;
+    var allBox = document.getElementById('fa-all');
+    var boxes = document.getElementById('filter-pop').getElementsByClassName('fa-cat');
+    if (t === allBox) {
+      // user toggled "Select All"
+      selCats = allBox.checked ? null : [];
+    } else {
+      // user toggled an individual category
+      var checkedCats = [];
+      for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].checked) { checkedCats.push(boxes[i].value); }
+      }
+      selCats = (checkedCats.length === allCats.length) ? null : checkedCats;
+    }
+    // keep every checkbox in sync with the new selection (no DOM rebuild)
+    allBox.checked = (selCats === null);
+    for (var k = 0; k < boxes.length; k++) {
+      boxes[k].checked = (selCats === null) || (selCats.indexOf(boxes[k].value) >= 0);
+    }
+    render();
+  }
+
+  function positionFilterPop() {
+    var btn = document.getElementById('cat-filter-btn');
+    var pop = document.getElementById('filter-pop');
+    var r = btn.getBoundingClientRect();
+    pop.style.left = r.left + 'px';
+    pop.style.top = (r.bottom + 2) + 'px';
+  }
+
+  function toggleFilter(ev) {
+    ev.stopPropagation();
+    var pop = document.getElementById('filter-pop');
+    if (pop.style.display === 'block') { pop.style.display = 'none'; return; }
+    buildFilterPop();
+    positionFilterPop();
+    pop.style.display = 'block';
+  }
+
+  function applyRenames(changes) {
+    // changes: {id: [old, new], ...}
+    var rows = document.getElementById('items').getElementsByClassName('row');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].getAttribute('data-id');
+      if (!changes[id]) { continue; }
+      renamedIds[id] = true;
+      names[id] = changes[id][1];
+      var name = names[id];
+      var span = diffSpan(oldNames[id], name);
+      var disp = escHtml(name);
+      if (span) {
+        disp = escHtml(name.substring(0, span[0])) +
+               '<span class="chg">' + escHtml(name.substring(span[0], span[1])) + '</span>' +
+               escHtml(name.substring(span[1]));
+      }
+      rows[i].getElementsByClassName('col-fam')[0].innerHTML = disp;
+    }
+    setCountText();
+  }
+
+  function revertIds(ids) {
+    // Undo an optimistic rename preview (conflict/failure correction).
+    var idSet = {};
+    for (var j = 0; j < ids.length; j++) { idSet[ids[j]] = true; }
+    var rows = document.getElementById('items').getElementsByClassName('row');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].getAttribute('data-id');
+      if (!idSet[id]) { continue; }
+      delete renamedIds[id];
+      names[id] = oldNames[id];
+      rows[i].getElementsByClassName('col-fam')[0].innerHTML = escHtml(names[id]);
+    }
+    setCountText();
+  }
+
+  function submit() {
+    var find = document.getElementById('find').value;
+    var repl = document.getElementById('replace').value;
+    var exact = isExact();
+    var ids = [];
+    var rows = document.getElementById('items').getElementsByClassName('row');
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].style.display === 'none') { continue; }
+      ids.push(rows[i].getAttribute('data-id'));
+    }
+    if (!ids.length) { return; }
+
+    // Optimistic preview: highlight the changes immediately (client-side), so
+    // the green feedback never depends on the async reply.
+    var changes = {};
+    if (find !== '') {
+      var flags = exact ? 'g' : 'gi';
+      for (var j = 0; j < ids.length; j++) {
+        var id = ids[j];
+        var oldName = names[id];
+        if (!oldName) { continue; }
+        var newName = oldName.replace(new RegExp(escapeRegExp(find), flags), repl);
+        if (newName !== oldName) { changes[id] = [oldName, newName]; }
+      }
+    }
+    applyRenames(changes);
+
+    // Ask Python to perform the renames; the reply corrects conflicts/failures.
+    pyrevit.action('rename', {find: find, replace: repl, exact: exact, ids: ids}, function (result) {
+      var renamed = result.renamed || {};
+      var okIds = {};
+      for (var k in renamed) {
+        if (renamed.hasOwnProperty(k)) { okIds[k] = true; }
+      }
+      // Revert any optimistic highlight Python did not actually rename.
+      var revert = [];
+      for (var m = 0; m < ids.length; m++) {
+        if (!okIds[ids[m]] && renamedIds[ids[m]]) { revert.push(ids[m]); }
+      }
+      if (revert.length) { revertIds(revert); }
+      // Re-apply with Python's authoritative new names.
+      applyRenames(renamed);
+    }, function (err) {
+      document.getElementById('count').textContent = 'error: ' + JSON.stringify(err);
+    });
+  }
+
+  document.getElementById('find').onkeyup = filterFind;
+  document.getElementById('exact').onchange = filterFind;
+
+  // close the category filter popup when clicking outside it
+  document.addEventListener('click', function (e) {
+    var pop = document.getElementById('filter-pop');
+    var btn = document.getElementById('cat-filter-btn');
+    if (pop.style.display === 'block' &&
+        e.target !== btn && !pop.contains(e.target)) {
+      pop.style.display = 'none';
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
