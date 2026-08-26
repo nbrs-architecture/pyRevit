@@ -1,0 +1,62 @@
+/* uiUtils.html default theme (auto-injected unless include_default_css=False).
+ * Tool styles load AFTER this in <head> and therefore win on equal specificity.
+ * Compatible with the mshtml / EdgeHTML engine: no flexbox / grid / CSS vars. */
+
+html, body {
+  height: 100%; margin: 0; overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #333;
+}
+
+/* Dark header bar */
+.hdr {
+  position: absolute; top: 0; left: 0; right: 0; height: 34px;
+  background: #2c3e50; color: #fff; padding: 0 12px;
+  font-size: 15px; line-height: 34px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Main content area sits between the header and the button bar */
+.wrap {
+  position: absolute; top: 34px; bottom: 48px; left: 0; right: 0;
+}
+
+/* Bottom button bar */
+.btns {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 48px;
+  text-align: right; padding: 8px 12px; border-top: 1px solid #ddd;
+  background: #fafafa; box-sizing: border-box;
+}
+
+button {
+  padding: 6px 16px; margin-left: 8px; font-size: 13px; cursor: pointer;
+}
+button.primary {
+  background: #2c3e50; color: #fff; border: 1px solid #2c3e50;
+}
+button.ghost {
+  background: #fff; color: #333; border: 1px solid #ccc;
+}
+
+/* Small field label */
+.lbl {
+  font-size: 12px; color: #555; margin: 4px 0;
+}
+
+input[type=text] {
+  box-sizing: border-box; width: 100%; padding: 6px;
+  font-size: 13px; border: 1px solid #ccc;
+}
+input[type=text]:focus { border-color: #2c3e50; outline: none; }
+
+/* Search match highlight (kept for parity with legacy tools) */
+mark {
+  background: #ffe58f; color: #333; padding: 0 1px;
+}
+
+/* Renamed-in-place highlight */
+.chg {
+  background: #cdeecb; color: #116329; font-weight: 600;
+  border-radius: 2px; padding: 0 1px;
+}
+
+.count { font-size: 11px; color: #888; }
