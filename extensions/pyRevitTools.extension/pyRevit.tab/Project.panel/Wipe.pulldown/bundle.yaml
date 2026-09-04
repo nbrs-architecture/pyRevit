@@ -15,3 +15,5 @@ layout:
   - Wipe Empty Tags
   - Wipe Arrowheads Types
   - Wipe All Project Parameters
+  - Wipe Unused Project Parameters
+  - Wipe Unused Scope Boxes
