@@ -8,6 +8,7 @@ if an upstream core sync ever overlaps with our files.
 
 | Date | Tool path | Description |
 |------|-----------|-------------|
+| 2026-09-07 | `extensions/pyRevitTools.extension/pyRevit.tab/Selection.panel/Pick.splitpushbutton/Pick Linked Model Elements.pushbutton` | New pick tool: click-selects elements inside linked models (not the link instances). Uses `ObjectType.LinkedElement` pick + `Selection.SetReferences` (Revit 2023+); shows a notice on older Revit |
 | 2026-09-04 | `extensions/pyRevitTools.extension/pyRevit.tab/Project.panel/Wipe.pulldown/Wipe Unused Project Parameters.pushbutton` | Finds project parameters (shared + non-shared) with no value on any element (native `CreateHasValueParameterRule` filter, instance + type, Revit 2022+) and lets you multi-select which to wipe |
 | 2026-09-04 | `extensions/pyRevitTools.extension/pyRevit.tab/Project.panel/Wipe.pulldown/Wipe Unused Scope Boxes.pushbutton` | Collects scope boxes not used by any view (crop), level, or grid and lets you multi-select which to wipe |
 | 2026-08-20 | `extensions/pyRevitTools.extension/pyRevit.tab/Modify.panel/edit2.stack/ReName.pushbutton` | New multipurpose find & replace renamer for family names, views, sheets, filters, and view templates |
