@@ -13,6 +13,8 @@ from pyrevit import script
 output = script.get_output()
 logger = script.get_logger()
 
+SCALE_PARAM_NAME = "Scale"
+
 
 def get_source_sheets():
     sheet_elements = forms.select_sheets(
@@ -25,23 +27,71 @@ def get_source_sheets():
     return sheet_elements
 
 
+def get_sheet_scale(sheet):
+    """Return the sheet 'Scale' parameter as displayed text."""
+    for param in sheet.GetOrderedParameters():
+        if param.Definition and param.Definition.Name == SCALE_PARAM_NAME:
+            value = param.AsString()
+            if not value:
+                value = param.AsValueString()
+            return value or ""
+    return ""
+
+
+def get_sheet_views(sheet):
+    """Return linked, comma separated names of the views placed on sheet."""
+    views = []
+    for view_id in sheet.GetAllPlacedViews():
+        view = revit.doc.GetElement(view_id)
+        if view is not None:
+            views.append((view.Name, output.linkify(view.Id, title=view.Name)))
+    views.sort(key=lambda x: x[0])
+    return ", ".join([x[1] for x in views])
+
+
 def print_titleblocks(sheets):
     all_tblocks = []
+    sheet_rows = []
     for sheet in sheets:
         tblocks = revit.query.get_sheet_tblocks(sheet)
+        if not tblocks:
+            continue
         all_tblocks.extend([x.Id for x in tblocks])
-        for tblock in tblocks:
-            print(
-                "SHEET: {0} - {1}\t\tTITLEBLOCK: {2} {3}".format(
-                    sheet.SheetNumber,
-                    sheet.Name,
-                    tblock.Name,
-                    output.linkify(tblock.Id),
-                )
+        sheet_rows.append((sheet, tblocks))
+
+    sheet_rows.sort(key=lambda x: x[0].SheetNumber)
+
+    table_data = []
+    for sheet, tblocks in sheet_rows:
+        table_data.append(
+            [
+                output.linkify(
+                    sheet.Id,
+                    title="{0} - {1}".format(sheet.SheetNumber, sheet.Name),
+                ),
+                ", ".join(
+                    [output.linkify(x.Id, title=x.Name) for x in tblocks]
+                ),
+                get_sheet_views(sheet),
+                get_sheet_scale(sheet),
+            ]
+        )
+
+    if table_data:
+        output.print_table(
+            table_data=table_data,
+            title="TitleBlocks on Sheets",
+            columns=["SHEET", "TITLEBLOCK", "VIEWS", "SCALE"],
+        )
+    else:
+        forms.alert("No titleblocks found on the selected sheets.")
+
+    if all_tblocks:
+        print(
+            "{}".format(
+                output.linkify(all_tblocks, title="Select All TitleBlocks")
             )
-    print(
-        "{}".format(output.linkify(all_tblocks, title="Select All TitleBlocks"))
-    )
+        )
 
 
 # orchestrate
