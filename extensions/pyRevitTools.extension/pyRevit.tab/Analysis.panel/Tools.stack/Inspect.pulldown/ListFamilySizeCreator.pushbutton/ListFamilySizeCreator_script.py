@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """List all families and their sizes."""
 import os
+import re
 import math
 import tempfile
 from collections import defaultdict
@@ -16,6 +17,52 @@ if not os.path.exists(temp_dir):
     os.mkdir(temp_dir)
 save_as_options = DB.SaveAsOptions()
 save_as_options.OverwriteExistingFile = True
+
+# characters that are illegal in a windows file name, plus the reserved
+#  device names, which can not be used as a file name either
+ILLEGAL_FILE_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+RESERVED_FILE_NAME_PARTS = frozenset(
+    ['CON', 'PRN', 'AUX', 'NUL'] +
+    ['COM{}'.format(i) for i in range(1, 10)] +
+    ['LPT{}'.format(i) for i in range(1, 10)]
+)
+MAX_FILE_NAME_LENGTH = 120
+
+
+def make_temp_file_path(name):
+    """Build a saveable temporary .rfa path out of a revit family name.
+
+    A revit family name is not guaranteed to be a valid windows file name. A
+    ':' for example turns the rest of the path into an NTFS alternate data
+    stream reference, which Revit reports as an unreadable/unsaveable file,
+    and without the '.rfa' extension Revit saves to a different file than the
+    one this script then measures and deletes.
+    """
+    # the temp folder can be cleaned up by the OS or by a security agent
+    #  while the script is running, so make sure it is still there
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    file_name = ILLEGAL_FILE_NAME_CHARS.sub('_', name or '')
+    # windows silently strips trailing dots and spaces from file names
+    file_name = file_name.strip().rstrip('.').strip() or 'Unnamed'
+    if file_name.split('.')[0].upper() in RESERVED_FILE_NAME_PARTS:
+        file_name = '_' + file_name
+    if len(file_name) > MAX_FILE_NAME_LENGTH:
+        file_name = file_name[:MAX_FILE_NAME_LENGTH].rstrip('. ').strip()
+
+    file_path = os.path.join(temp_dir, file_name + '.rfa')
+    # a leftover file from a cancelled run may still be locked by Revit
+    index = 1
+    while os.path.exists(file_path) and index <= 20:
+        try:
+            os.remove(file_path)
+            break
+        except Exception:
+            file_path = os.path.join(
+                temp_dir, '{}_{}.rfa'.format(file_name, index))
+            index += 1
+    return file_path
 
 
 def convert_size(size_bytes):
@@ -145,6 +192,9 @@ for instance in all_family_instances:
     except Exception:
         continue
 
+# families that could not be measured because they could not be saved
+save_failures = []
+
 with forms.ProgressBar(title="List family sizes", cancellable=True) as pb:
     i = 0
 
@@ -160,13 +210,27 @@ with forms.ProgressBar(title="List family sizes", cancellable=True) as pb:
                     )
                     continue
                 fam_path = fam_doc.PathName
+                temp_path = None
                 # if the family path does not exists, save it temporary
                 #  only if the wasn't opened when the script was started
                 if fam_doc.Title not in opened_families and (
                         not fam_path or not os.path.exists(fam_path)):
                     # save with temporary path, to know family size
-                    fam_path = os.path.join(temp_dir, fam_doc.Title)
-                    fam_doc.SaveAs(fam_path, save_as_options)
+                    try:
+                        temp_path = make_temp_file_path(
+                            fam.Name or fam_doc.Title)
+                        fam_doc.SaveAs(temp_path, save_as_options)
+                        # let revit tell us where it actually saved to
+                        fam_path = fam_doc.PathName or temp_path
+                    except Exception as ex:
+                        logger.warning(
+                            "No size for family '%s': could not save a "
+                            "temporary copy to '%s': %s",
+                            fam.Name, temp_path, ex
+                        )
+                        temp_path = None
+                        fam_path = None
+                        save_failures.append(fam.Name)
 
                 fam_size = 0
                 fam_category = fam.FamilyCategory.Name if fam.FamilyCategory \
@@ -187,10 +251,20 @@ with forms.ProgressBar(title="List family sizes", cancellable=True) as pb:
                                          "Count": fam_count})
                 # if the family wasn't opened before, close it
                 if fam_doc.Title not in opened_families:
-                    fam_doc.Close(False)
+                    try:
+                        fam_doc.Close(False)
+                    except Exception as ex:
+                        logger.warning(
+                            "Could not close family '%s': %s", fam.Name, ex)
                     # remove temporary family
-                    if fam_path.lower().startswith(temp_dir.lower()):
-                        os.remove(fam_path)
+                    if temp_path:
+                        try:
+                            if os.path.exists(temp_path):
+                                os.remove(temp_path)
+                        except Exception as ex:
+                            logger.warning(
+                                "Could not remove the temporary family '%s': "
+                                "%s", temp_path, ex)
         if pb.cancelled:
             break
         else:
@@ -199,4 +273,9 @@ with forms.ProgressBar(title="List family sizes", cancellable=True) as pb:
 
 
 # print results
+if save_failures:
+    output.print_md(
+        "### %d families could not be saved to a temporary file and are "
+        "listed as N/A (see the pyRevit log for details)\n\n"
+        % len(save_failures))
 print_sorted(all_family_items, sort_by)
