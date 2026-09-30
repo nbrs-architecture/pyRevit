@@ -1,0 +1,4 @@
+title:
+  en_us: Wipe Unplaced Rooms
+tooltip:
+  en_us: Deletes unplaced rooms (rooms that only exist in room schedules and have no location in the model). You can multi-select which rooms to wipe

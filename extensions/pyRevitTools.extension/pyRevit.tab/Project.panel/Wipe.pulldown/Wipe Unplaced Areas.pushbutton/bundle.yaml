@@ -1,0 +1,4 @@
+title:
+  en_us: Wipe Unplaced Areas
+tooltip:
+  en_us: Deletes unplaced areas (areas that only exist in area schedules and have no location in the model). You can multi-select which areas to wipe
