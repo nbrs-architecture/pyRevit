@@ -105,3 +105,13 @@ extensions = get_all_extensions()
 ```
 
 The same rule applies to docstrings, inline comments, and any documentation generated alongside code.
+
+# NBRS branch workflow
+
+This fork is maintained by NBRS. Work on our own tools (`extensions/pyRevitTools.extension/`) always follows this order:
+
+1. Do the work on the **`pyrevittools`** branch: commit the tool change together with its entry in `PYREVITTOOLS_CHANGES.md`.
+2. Push `origin/pyrevittools` first.
+3. Cherry-pick those commits onto `master` and push `origin/master`.
+
+Never land tool work on `master` first. Commit messages must not carry a `Co-authored-by:` trailer.
