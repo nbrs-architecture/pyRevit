@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """List all elements of the selected workset(s).
 
-Asks the user to pick one or more worksets (offering the worksets of the
-current selection first) and then lists every element in them, grouped by
-category.
+Asks the user to pick one or more worksets and then lists every element in
+them, grouped by category.
 
 Works on Revit 2022+.
 """
@@ -60,27 +59,8 @@ def get_user_worksets(doc):
     )
 
 
-def get_selected_worksets():
-    """Return the distinct worksets of the currently selected elements."""
-    worksets = []
-    seen_ids = set()
-
-    for element in revit.get_selection():
-        workset = revit.query.get_element_workset(element)
-        if workset is not None and workset.Id not in seen_ids:
-            seen_ids.add(workset.Id)
-            worksets.append(workset)
-
-    return worksets
-
-
 def select_worksets(doc):
     """Prompt the user for one or more worksets."""
-    selected_worksets = get_selected_worksets()
-    if selected_worksets and forms.ask_to_use_selected(
-            'worksets', count=len(selected_worksets)):
-        return selected_worksets
-
     all_worksets = get_user_worksets(doc)
     if not all_worksets:
         forms.alert('No Worksets in model.', exitscript=True)
