@@ -1,0 +1,5 @@
+title:
+  en_us: ListElementsByWorkset
+tooltip:
+  en_us: Pick one or more worksets and list all elements in them, grouped by category
+author: 'pyChilizer / NBRS'
