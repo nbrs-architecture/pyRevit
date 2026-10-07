@@ -1,0 +1,4 @@
+title:
+  en_us: Select Elements with Manual Override
+tooltip:
+  en_us: Selects every element that has a manual graphic override (Override Graphics in View > By Element) in the active view
