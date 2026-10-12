@@ -18,6 +18,13 @@ if an upstream core sync ever overlaps with our files.
 | 2026-09-04 | `extensions/pyRevitTools.extension/pyRevit.tab/Project.panel/Wipe.pulldown/Wipe Unused Scope Boxes.pushbutton` | Collects scope boxes not used by any view (crop), level, or grid and lets you multi-select which to wipe |
 | 2026-08-20 | `extensions/pyRevitTools.extension/pyRevit.tab/Modify.panel/edit2.stack/ReName.pushbutton` | New multipurpose find & replace renamer for family names, views, sheets, filters, and view templates |
 
+## Added Hooks
+
+| Date | Hook path | Description |
+|------|-----------|-------------|
+| 2026-10-13 | `extensions/pyRevitTools.extension/hooks/command-before-exec[ID_FILE_IMPORT].py` | Cancels the "Insert > Import > Import CAD" command unless the active document is a family, so DWG/DXF/DGN/SAT must be linked rather than imported. Uses a command hook rather than a `file-importing` hook because `Application.FileImporting` also fires for Link CAD and `FileImportingEventArgs` exposes no way to tell the two apart. Cancels before inspecting the document (default-deny) so the import stays blocked even if document access fails. 3DM imports and Link CAD are unaffected; drag-and-drop and direct `Document.Import()` calls bypass the hook |
+| 2026-10-13 | `extensions/pyRevitTools.extension/hooks/command-before-exec[ID_OBJECTS_CLOUD].py` | Cancels the "Create a revision cloud" command unless the active view is a drawing sheet, so revision clouds can only be placed on sheets. Uses a command hook rather than `doc-changed` because `Application.DocumentChanged` is a read-only event with no cancel and could only report a cloud that already exists |
+
 ## Modified Tools
 
 | Date | Tool path | Change | Reason |
