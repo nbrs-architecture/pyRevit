@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<style>
+  .wrap { padding: 8px 14px; overflow-y: auto; }
+  h4 { margin: 14px 0 6px 0; font-size: 13px; color: #2c3e50;
+       border-bottom: 1px solid #e2e2e2; padding-bottom: 3px;
+       position: relative; }
+  h4 input[type=checkbox] { vertical-align: middle; margin: 0 3px 0 0; }
+  .hdr-extra { position: absolute; right: 0; top: -2px; font-size: 12px;
+               font-weight: normal; color: #555; line-height: 20px; }
+  .hdr-extra input[type=text] { width: 170px; margin-left: 5px; padding: 2px 5px;
+                                font-size: 13px; height: 20px; }
+  table.form { width: 100%; border-collapse: collapse; }
+  table.form td { padding: 3px 6px 3px 0; vertical-align: middle; }
+  table.form td.chk { width: 26px; }
+  table.form td.k { width: 44%; }
+  select { width: 100%; padding: 5px; font-size: 13px;
+           border: 1px solid #ccc; box-sizing: border-box; }
+  input[type=text], select, button {
+    font-family: 'Segoe UI', Arial, sans-serif; }
+  .hint { color: #777; font-size: 11px; }
+  .err { color: #c0392b; font-size: 12px; min-height: 16px; padding-top: 4px; }
+  .note { background: #f6f8fa; border: 1px solid #e2e6ea; padding: 6px 8px;
+          margin: 6px 0; font-size: 12px; }
+  .rooms { max-height: 96px; overflow-y: auto; font-family: Consolas, monospace;
+           font-size: 11px; color: #555; }
+  td.disabled { opacity: 0.45; }
+</style>
+</head>
+<body>
+<div class="hdr" id="header">Room Data Sheets</div>
+
+<div class="wrap">
+  <div class="note" id="summary"></div>
+
+  <h4 id="sheet_heading"><input type="checkbox" id="create_sheet">&nbsp;Sheet</h4>
+  <table class="form">
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="titleblock_cell">Titleblock</td>
+      <td><select id="titleblock"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="sheet_nr_cell">Sheet number
+        <span class="hint">(increments per room)</span></td>
+      <td><input type="text" id="sheet_number"></td>
+    </tr>
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="tb_orient_cell">Titleblock orientation</td>
+      <td><select id="tb_orientation"></select></td>
+    </tr>
+  </table>
+
+  <h4>Views<span class="hdr-extra">prefix
+    <input type="text" id="view_prefix"></span></h4>
+  <table class="form">
+    <tr>
+      <td class="chk"><input type="checkbox" id="create_plan"></td>
+      <td class="k" id="plan_cell">Plans</td>
+      <td><select id="vt_plans"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"><input type="checkbox" id="create_rcp"></td>
+      <td class="k" id="rcp_cell">Reflected ceiling plans</td>
+      <td><select id="vt_rcp"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"><input type="checkbox" id="create_elevations"></td>
+      <td class="k" id="elev_cell">Elevations <span class="hint">(A-D)</span></td>
+      <td><select id="vt_elevations"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"><input type="checkbox" id="create_sections"></td>
+      <td class="k" id="sect_cell">Sections
+        <span class="hint">(horizontal + vertical)</span></td>
+      <td><select id="vt_sections"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"><input type="checkbox" id="create_axo"></td>
+      <td class="k" id="axo_cell">Axonometric view</td>
+      <td><select id="vt_axo"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="elev_type_cell">Elevation type</td>
+      <td><select id="elevation_type"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="section_type_cell">Section type</td>
+      <td><select id="section_type"></select></td>
+    </tr>
+    <tr>
+      <td class="chk"></td>
+      <td class="k" id="viewport_cell">Viewport type</td>
+      <td><select id="viewport"></select></td>
+    </tr>
+  </table>
+
+  <div class="err" id="error"></div>
+</div>
+
+<div class="btns">
+  <button type="button" class="ghost" onclick="pyrevit.cancel()">Cancel</button>
+  <button type="button" class="primary" onclick="submit()">Create</button>
+</div>
+
+<script>
+  var D = pyrevit.data;
+
+  // [toggle id, template select id, label cell id]
+  var VIEW_TOGGLES = [
+    ['create_plan', 'vt_plans', 'plan_cell'],
+    ['create_rcp', 'vt_rcp', 'rcp_cell'],
+    ['create_elevations', 'vt_elevations', 'elev_cell'],
+    ['create_sections', 'vt_sections', 'sect_cell'],
+    ['create_axo', 'vt_axo', 'axo_cell']
+  ];
+  var CHECKBOXES = ['create_sheet', 'create_plan', 'create_rcp',
+                    'create_elevations', 'create_sections', 'create_axo'];
+
+  function fillSelect(id, items, selected) {
+    var select = document.getElementById(id);
+    if (!select) { return; }
+    for (var i = 0; i < items.length; i++) {
+      var option = document.createElement('option');
+      option.value = String(i);
+      option.text = items[i];
+      select.options.add(option);
+    }
+    if (items.length === 0) {
+      select.disabled = true;
+      return;
+    }
+    selected = parseInt(selected, 10);
+    select.selectedIndex = (selected >= 0 && selected < items.length) ? selected : 0;
+  }
+
+  function value(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
+  function checked(id) {
+    var el = document.getElementById(id);
+    return el ? !!el.checked : false;
+  }
+
+  function setEnabled(id, enabled) {
+    var el = document.getElementById(id);
+    if (el) { el.disabled = !enabled; }
+  }
+
+  function dimCell(cellId, enabled) {
+    var cell = document.getElementById(cellId);
+    if (!cell) { return; }
+    cell.className = enabled ? 'k' : 'k disabled';
+  }
+
+  function syncState() {
+    var createSheet = checked('create_sheet');
+
+    setEnabled('titleblock', createSheet && D.titleblocks.length > 0);
+    setEnabled('sheet_number', createSheet);
+    setEnabled('tb_orientation', createSheet);
+    setEnabled('viewport', createSheet && D.viewports.length > 0);
+    dimCell('titleblock_cell', createSheet);
+    dimCell('sheet_nr_cell', createSheet);
+    dimCell('tb_orient_cell', createSheet);
+    dimCell('viewport_cell', createSheet);
+
+    for (var i = 0; i < VIEW_TOGGLES.length; i++) {
+      var on = checked(VIEW_TOGGLES[i][0]);
+      setEnabled(VIEW_TOGGLES[i][1], on);
+      dimCell(VIEW_TOGGLES[i][2], on);
+    }
+
+    var elevations = checked('create_elevations');
+    var sections = checked('create_sections');
+    setEnabled('elevation_type', elevations && D.elevation_types.length > 0);
+    setEnabled('section_type', sections && D.section_types.length > 0);
+    dimCell('elev_type_cell', elevations);
+    dimCell('section_type_cell', sections);
+  }
+
+  function submit() {
+    var createSheet = checked('create_sheet');
+    var errors = [];
+    var anyView = false;
+
+    for (var i = 0; i < VIEW_TOGGLES.length; i++) {
+      if (checked(VIEW_TOGGLES[i][0])) { anyView = true; }
+    }
+    if (createSheet && !value('sheet_number')) {
+      errors.push('Enter a sheet number.');
+    }
+    if (!anyView) {
+      errors.push('Select at least one view to create.');
+    }
+    if (checked('create_elevations') && D.elevation_types.length === 0) {
+      errors.push('There are no interior elevation types in the model.');
+    }
+    if (checked('create_sections') && D.section_types.length === 0) {
+      errors.push('There are no section types in the model.');
+    }
+    if (errors.length) {
+      document.getElementById('error').innerHTML = errors.join('<br>');
+      return;
+    }
+
+    pyrevit.close({
+      create_sheet: createSheet,
+      titleblock: value('titleblock'),
+      sheet_number: value('sheet_number'),
+      tb_orientation: value('tb_orientation'),
+      view_prefix: value('view_prefix'),
+      create_plan: checked('create_plan'),
+      create_rcp: checked('create_rcp'),
+      create_elevations: checked('create_elevations'),
+      create_sections: checked('create_sections'),
+      create_axo: checked('create_axo'),
+      vt_plans: value('vt_plans'),
+      vt_rcp: value('vt_rcp'),
+      vt_elevations: value('vt_elevations'),
+      vt_sections: value('vt_sections'),
+      vt_axo: value('vt_axo'),
+      elevation_type: value('elevation_type'),
+      section_type: value('section_type'),
+      viewport: value('viewport')
+    });
+  }
+
+  function init() {
+    var defaults = D.defaults;
+
+    document.getElementById('header').innerHTML =
+      'Room Data Sheets &nbsp;<span style="font-size:12px;color:#bdc3c7;">' +
+      D.room_count + ' room(s)</span>';
+
+    var html = '<b>' + D.room_count + ' room(s) selected</b>';
+    if (D.room_names.length) {
+      html += '<div class="rooms">' + D.room_names.join('<br>') +
+              (D.room_count > D.room_names.length ? '<br>...' : '') + '</div>';
+    }
+    document.getElementById('summary').innerHTML = html;
+
+    fillSelect('titleblock', D.titleblocks, defaults.titleblock);
+    fillSelect('tb_orientation', D.tb_orientations, defaults.tb_orientation);
+    fillSelect('vt_plans', D.plan_templates, defaults.vt_plans);
+    fillSelect('vt_rcp', D.plan_templates, defaults.vt_rcp);
+    fillSelect('vt_elevations', D.section_templates, defaults.vt_elevations);
+    fillSelect('vt_sections', D.section_templates, defaults.vt_sections);
+    fillSelect('vt_axo', D.axo_templates, defaults.vt_axo);
+    fillSelect('elevation_type', D.elevation_types, defaults.elevation_type);
+    fillSelect('section_type', D.section_types, defaults.section_type);
+    fillSelect('viewport', D.viewports, defaults.viewport);
+
+    document.getElementById('sheet_number').value = defaults.sheet_number;
+    document.getElementById('view_prefix').value = defaults.view_prefix || '';
+
+    document.getElementById('create_sheet').checked = !!defaults.create_sheet;
+    document.getElementById('create_plan').checked = !!defaults.create_plan;
+    document.getElementById('create_rcp').checked = !!defaults.create_rcp;
+    document.getElementById('create_elevations').checked = !!defaults.create_elevations;
+    document.getElementById('create_sections').checked = !!defaults.create_sections;
+    document.getElementById('create_axo').checked = !!defaults.create_axo;
+
+    for (var i = 0; i < CHECKBOXES.length; i++) {
+      document.getElementById(CHECKBOXES[i]).onclick = syncState;
+    }
+
+    syncState();
+  }
+
+  init();
+</script>
+</body>
+</html>
