@@ -15,6 +15,12 @@ in-house extension: **pyRevitTools**.
 
 `bin/` is not stored here — `pyrevit clone` downloads matching binaries automatically.
 
+> **Careful:** `pyrevitlib/` is *not* purely upstream-owned.
+> `pyrevitlib/pyrevit/revit/db/query.py` carries one fork-local change
+> (`get_sheet_tblocks`), and the core sync overwrites whole files rather than
+> merging them. A sync that does not re-apply that change reverts it silently.
+> See [`CORE_SYNC.md`](./CORE_SYNC.md).
+
 ## Editing our tools
 
 1. Work on the `pyrevittools` branch.
@@ -24,11 +30,21 @@ in-house extension: **pyRevitTools**.
 5. After merge, machines update with:
 
 ```
-pyrevit clones update OrgClone --skip-bin
+pyrevit clones update NBRS --skip-bin
 ```
+
+The registered clone is `NBRS` (not `OrgClone`). After a core sync the loader
+binaries change too, so drop `--skip-bin` for those machines.
 
 ## Syncing with upstream
 
-The `Sync core from upstream` workflow runs weekly (and can be run manually from
-the Actions tab). It opens a pull request with core-only updates. Review and
-merge it — it never touches `extensions/pyRevitTools.extension/`.
+The `Sync core from upstream` workflow runs quarterly (1 Jan/Apr/Jul/Oct) and can
+be run manually from the Actions tab. It overlays the core paths from
+`pyrevitlabs/pyRevit` `master` and never touches
+`extensions/pyRevitTools.extension/` — but it overwrites whole files elsewhere, so
+read [`CORE_SYNC.md`](./CORE_SYNC.md) before merging.
+
+A scheduled run only **detects** changes: it pushes nothing and records the pending
+sync (as an issue when Issues are enabled, otherwise in the run's step summary). To
+actually land a sync, dispatch the workflow with `push: true`; only actors listed in
+the `SYNC_ALLOWED_ACTORS` repository variable may push.
