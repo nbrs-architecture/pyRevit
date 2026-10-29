@@ -1,0 +1,8 @@
+title:
+  en_us: Room Data Sheets
+tooltip:
+  en_us: >-
+    Creates a sheet per room (optional) with any combination of a rotated floor
+    plan, a reflected ceiling plan, four elevations (A-D), two sections
+    (horizontal and vertical) and an axonometric view. Assign the sheet number,
+    titleblock, view templates, viewport type and an optional view-name prefix.
