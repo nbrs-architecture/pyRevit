@@ -17,7 +17,6 @@ on both pyRevit engines: IronPython 2.7 (Revit 2024) and CPython (Revit 2025+).
 """
 from pyrevit import revit, DB, script
 
-import uiUtils
 from uiUtils.html import HtmlDialog
 
 import rdsUtils
@@ -575,7 +574,7 @@ def main():
 
     rooms = get_rooms(doc)
     if not rooms:
-        uiUtils.showWarningMessage('No rooms selected - nothing to do.')
+        print('No rooms selected - nothing to do.')
         return
 
     _dialog_data, context = gather_dialog_data(doc, rooms)
@@ -619,16 +618,18 @@ def main():
             print('Sheet: {}\tRoom {}'.format(output.linkify(sheet.Id), sheet_name))
 
     if failures:
-        uiUtils.showErrorMessage('{} of {} rooms failed: {}'.format(
+        print('')
+        print('{} of {} rooms failed: {}'.format(
             len(failures), len(rooms),
             ', '.join('{} ({})'.format(room.Number, message)
                       for room, message in failures)))
     if created:
+        print('')
         if options.create_sheet:
-            uiUtils.showCompleteMessage('{} sheet(s) created.'.format(created))
+            print('{} sheet(s) created.'.format(created))
         else:
-            uiUtils.showCompleteMessage(
-                'Views created for {} room(s) - no sheets were created.'.format(created))
+            print('Views created for {} room(s) - no sheets were created.'
+                  .format(created))
 
 
 if __name__ == '__main__':
