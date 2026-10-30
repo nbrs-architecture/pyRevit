@@ -17,6 +17,9 @@ cancel Link CAD too. ``BeforeExecutedEventArgs`` is documented as cancellable,
 so the command is stopped before it runs: nothing is created, nothing has to be
 deleted afterwards and no cancel-and-redo pair lands in the undo stack.
 
+Family documents are exempt: content authors legitimately import CAD, so the
+hook only blocks imports in project documents.
+
 Imports that never reach this ribbon command - drag-and-drop, or another add-in
 calling ``Document.Import()`` - are not blocked by this hook.
 
@@ -33,21 +36,19 @@ SUGGESTION = 'Use LINK CAD please.'
 
 def main():
     """Cancel Import CAD and point the user at Link CAD instead."""
-    # Default-deny: block before inspecting the document so the import is
-    # always cancelled even if document access fails.
-    # Cancel is a bool property on BeforeExecutedEventArgs - assign it, never call it.
-    EXEC_PARAMS.event_args.Cancel = True
-
     # event_sender is the UIApplication; ActiveDocument on BeforeExecutedEventArgs
     # has no backing property in the Revit API and returns None unreliably.
     uidoc = EXEC_PARAMS.event_sender.ActiveUIDocument
     doc = uidoc.Document if uidoc else None
 
-    # Family documents may import CAD while authoring content; release the
-    # cancel and exit without an alert.
+    # Family documents may import CAD while authoring content; leave the event
+    # alone and exit without an alert. This must happen before Cancel is set:
+    # Revit cannot un-cancel an event and raises InvalidOperationException.
     if doc is not None and doc.IsFamilyDocument:
-        EXEC_PARAMS.event_args.Cancel = False
         return
+
+    # Cancel is a bool property on BeforeExecutedEventArgs - assign it, never call it.
+    EXEC_PARAMS.event_args.Cancel = True
 
     # Only alert when a model document is active; if doc is None the command
     # is already cancelled silently (Import CAD is disabled with no doc open).
